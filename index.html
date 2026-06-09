@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>☠ my music</title>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      min-height: 100vh;
+      font-family: 'Courier Prime', monospace;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* scanline overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 999;
+      background-image: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px
+      );
+    }
+
+    .wrap { width: 100%; max-width: 440px; padding: 2rem 1.25rem; }
+
+    .screen { display: none; animation: fadeIn 0.6s ease; }
+    .screen.active { display: block; }
+
+    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    @keyframes barPulse { 0%,100%{transform:scaleY(0.4)} 50%{transform:scaleY(1)} }
+
+    /* ===== LOCK SCREEN ===== */
+    #lock { text-align: center; }
+    .skull { font-size: 52px; margin-bottom: 1rem; }
+    .lock-title {
+      font-family: 'Special Elite', serif;
+      font-size: 28px; color: #e0e0e0;
+      letter-spacing: 4px; margin-bottom: 6px;
+    }
+    .lock-sub { font-size: 11px; color: #444; letter-spacing: 5px; margin-bottom: 2.5rem; }
+    .lock-box {
+      max-width: 300px; margin: 0 auto;
+      border: 1px solid #2a2a2a; border-radius: 4px;
+      padding: 1.75rem; background: #111;
+    }
+    .pw-label { font-size: 10px; color: #555; letter-spacing: 3px; text-align: left; margin-bottom: 8px; }
+    .pw-input {
+      width: 100%; background: #0a0a0a;
+      border: 1px solid #2a2a2a; border-radius: 3px;
+      padding: 10px 14px; color: #ccc;
+      font-family: 'Courier Prime', monospace;
+      font-size: 15px; letter-spacing: 3px; margin-bottom: 1rem;
+    }
+    .pw-input:focus { outline: none; border-color: #8b0000; }
+    .unlock-btn {
+      width: 100%; padding: 11px; background: #8b0000;
+      border: none; border-radius: 3px; color: #ddd;
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px; letter-spacing: 3px; cursor: pointer;
+    }
+    .unlock-btn:hover { background: #a50000; }
+    .unlock-btn.shake { animation: shake 0.4s; }
+    .err-msg { font-size: 11px; color: #8b0000; margin-top: 8px; letter-spacing: 1px; min-height: 18px; }
+    .crosses { color: #1e1e1e; letter-spacing: 8px; font-size: 12px; margin-top: 2rem; }
+
+    /* ===== VIDEO SCREEN ===== */
+    #vid-screen { text-align: center; }
+    .vid-label { font-size: 10px; color: #444; letter-spacing: 4px; margin-bottom: 1rem; }
+    video, .vid-embed {
+      width: 100%; border: 1px solid #2a2a2a;
+      border-radius: 4px; background: #000;
+      aspect-ratio: 16/9; display: block;
+    }
+    .skip-btn {
+      margin-top: 1.25rem; background: none;
+      border: 1px solid #2a2a2a; border-radius: 3px;
+      padding: 8px 22px; color: #444;
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px; letter-spacing: 2px; cursor: pointer;
+    }
+    .skip-btn:hover { border-color: #555; color: #888; }
+
+    /* ===== PLAYER ===== */
+    .now-playing {
+      border: 1px solid #1e1e1e; border-radius: 4px;
+      background: #0e0e0e; padding: 1.5rem; margin-bottom: 1rem;
+    }
+    .np-top { display: flex; align-items: center; gap: 14px; margin-bottom: 1rem; }
+    .album-sq {
+      width: 60px; height: 60px; flex-shrink: 0;
+      border: 1px solid #2a2a2a; border-radius: 3px;
+      background: #111; display: flex;
+      align-items: center; justify-content: center;
+      font-size: 24px; color: #333;
+    }
+    .vis-bars { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-bottom: 6px; }
+    .bar { width: 3px; background: #8b0000; border-radius: 1px; transform-origin: bottom; }
+    .bar:nth-child(1){height:60%;animation:barPulse 0.9s 0.0s infinite}
+    .bar:nth-child(2){height:100%;animation:barPulse 0.9s 0.15s infinite}
+    .bar:nth-child(3){height:70%;animation:barPulse 0.9s 0.3s infinite}
+    .bar:nth-child(4){height:40%;animation:barPulse 0.9s 0.1s infinite}
+    .bar:nth-child(5){height:85%;animation:barPulse 0.9s 0.25s infinite}
+    .np-title { font-size: 16px; font-weight: 700; color: #e0e0e0; }
+    .np-artist { font-size: 12px; color: #555; letter-spacing: 1px; margin-top: 3px; }
+    .progress-track {
+      width: 100%; height: 3px; background: #1e1e1e;
+      border-radius: 2px; cursor: pointer; margin: 1rem 0 0.4rem;
+    }
+    .progress-fill { height: 100%; background: #8b0000; border-radius: 2px; width: 0%; transition: width 0.3s linear; }
+    .time-row { display: flex; justify-content: space-between; font-size: 10px; color: #444; margin-bottom: 1rem; }
+    .controls { display: flex; align-items: center; justify-content: center; gap: 2rem; }
+    .ctrl { background: none; border: none; cursor: pointer; color: #555; font-size: 20px; }
+    .ctrl:hover { color: #aaa; }
+    .play-main {
+      width: 48px; height: 48px; background: #8b0000; border: none;
+      border-radius: 50%; font-size: 18px; color: #ddd; cursor: pointer;
+    }
+    .play-main:hover { background: #a50000; }
+
+    .playlist { border: 1px solid #1a1a1a; border-radius: 4px; overflow: hidden; }
+    .pl-header { font-size: 10px; color: #333; letter-spacing: 4px; padding: 10px 16px; border-bottom: 1px solid #1a1a1a; background: #0a0a0a; }
+    .track { display: flex; align-items: center; gap: 12px; padding: 0.8rem 16px; border-bottom: 1px solid #111; cursor: pointer; background: #0a0a0a; }
+    .track:last-child { border-bottom: none; }
+    .track:hover { background: #111; }
+    .track.active { background: #110005; }
+    .t-num { width: 18px; text-align: center; font-size: 11px; color: #333; }
+    .track.active .t-num { color: #8b0000; }
+    .t-name { flex: 1; font-size: 13px; color: #bbb; }
+    .t-name small { display: block; font-size: 11px; color: #444; font-style: italic; margin-top: 2px; }
+    .track.active .t-name { color: #e0e0e0; }
+    .t-dur { font-size: 11px; color: #3a3a3a; }
+
+    footer { text-align: center; font-size: 10px; color: #222; letter-spacing: 5px; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- LOCK SCREEN -->
+  <div class="screen active" id="lock">
+    <div class="skull">☠</div>
+    <div class="lock-title">happy birthday bab</div>
+    <div class="lock-sub">password required</div>
+    <div class="lock-box">
+      <div class="pw-label">♦hint robloc usernam</div>
+      <input class="pw-input" type="password" id="pw" placeholder="••••••••" />
+      <button class="unlock-btn" id="unlock-btn" onclick="tryUnlock()">unlock →</button>
+      <div class="err-msg" id="err"></div>
+    </div>
+    <div class="crosses">✝ ✝ ✝ ✝ ✝</div>
+  </div>
+
+  <!-- VIDEO SCREEN -->
+  <div class="screen" id="vid-screen">
+    <div class="vid-label">♦ before we begin</div>
+
+    <!-- OPTION A: local video file -->
+    <video id="intro-video" controls autoplay>
+      <source src="intro.mp4" type="video/mp4">
+    </video>
+
+    <!-- OPTION B: YouTube embed — comment out the <video> above and uncomment this:
+    <iframe class="vid-embed" src="https://www.youtube.com/embed/YOUR_VIDEO_ID?autoplay=1"
+      frameborder="0" allowfullscreen allow="autoplay"></iframe>
+    -->
+
+    <br>
+    <button class="skip-btn" onclick="goPlayer()">skip to music →</button>
+  </div>
+
+  <!-- PLAYER SCREEN -->
+  <div class="screen" id="player">
+    <div class="now-playing">
+      <div class="np-top">
+        <div class="album-sq">♜</div>
+        <div style="flex:1">
+          <div class="vis-bars">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div>
+          </div>
+          <div class="np-title" id="np-title">—</div>
+          <div class="np-artist" id="np-artist">select a track</div>
+        </div>
+      </div>
+      <div class="progress-track" id="prog-track" onclick="seekClick(event)">
+        <div class="progress-fill" id="prog"></div>
+      </div>
+      <div class="time-row"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+      <div class="controls">
+        <button class="ctrl" onclick="prevTrack()" title="previous">⏮</button>
+        <button class="play-main" id="play-btn" onclick="togglePlay()">▶</button>
+        <button class="ctrl" onclick="nextTrack()" title="next">⏭</button>
+      </div>
+    </div>
+    <div class="playlist">
+      <div class="pl-header">♦ tracklist</div>
+      <div id="tracklist"></div>
+    </div>
+    <footer>✝ ✝ ✝</footer>
+  </div>
+
+</div>
+
+<audio id="audio"></audio>
+
+<script>
+  /* ======= CONFIGURE HERE ======= */
+  const PASSWORD = "guggu92";   // ← change this
+
+  const SONGS = [
+    { title: "A Night to Remember",   artist: "beabadoobee", file: "A night to remember.mp3" },
+    { title: "I'm Like a Lawyer With the Way I'm Always Trying to Get You Off",   artist: "Fall Out Boy", file: "I'm Like a Lawyer With the Way I'm Always Trying to Get You Off .mp3" },
+    { title: "Head over Heels", artist: "Tears For Fears", file: "Head over Heels.mp3" },
+    // add more...
+  ];
+  /* =============================== */
+
+  const audio = document.getElementById('audio');
+  let current = 0;
+
+  function tryUnlock() {
+    const val = document.getElementById('pw').value;
+    const err = document.getElementById('err');
+    const btn = document.getElementById('unlock-btn');
+    if (val === PASSWORD) {
+      document.getElementById('lock').classList.remove('active');
+      const vidScreen = document.getElementById('vid-screen');
+      vidScreen.classList.add('active');
+      // auto-play the video if it exists
+      const v = document.getElementById('intro-video');
+      if (v) v.play().catch(() => {});
+    } else {
+      err.textContent = '✝ wrong password. try again.';
+      btn.classList.add('shake');
+      setTimeout(() => btn.classList.remove('shake'), 400);
+      document.getElementById('pw').value = '';
+    }
+  }
+  document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+  function goPlayer() {
+    const v = document.getElementById('intro-video');
+    if (v) v.pause();
+    document.getElementById('vid-screen').classList.remove('active');
+    document.getElementById('player').classList.add('active');
+    buildPlaylist();
+    loadTrack(0);
+  }
+
+  // also go to player when video ends
+  const introVid = document.getElementById('intro-video');
+  if (introVid) introVid.addEventListener('ended', goPlayer);
+
+  function buildPlaylist() {
+    const list = document.getElementById('tracklist');
+    list.innerHTML = '';
+    SONGS.forEach((s, i) => {
+      const div = document.createElement('div');
+      div.className = 'track' + (i === 0 ? ' active' : '');
+      div.id = 'tr-' + i;
+      div.innerHTML = `<span class="t-num">${i === 0 ? '♦' : i+1}</span>
+        <span class="t-name">${s.title}<small>${s.artist}</small></span>
+        <span class="t-dur">${s.duration || ''}</span>`;
+      div.onclick = () => { loadTrack(i); audio.play(); };
+      list.appendChild(div);
+    });
+  }
+
+  function loadTrack(i) {
+    current = i;
+    const s = SONGS[i];
+    audio.src = s.file;
+    document.getElementById('np-title').textContent = s.title;
+    document.getElementById('np-artist').textContent = s.artist;
+    document.getElementById('prog').style.width = '0%';
+    document.querySelectorAll('.track').forEach((t, j) => {
+      t.classList.toggle('active', j === i);
+      t.querySelector('.t-num').textContent = j === i ? '♦' : j + 1;
+    });
+  }
+
+  function togglePlay() {
+    const btn = document.getElementById('play-btn');
+    if (audio.paused) { audio.play(); btn.textContent = '⏸'; }
+    else { audio.pause(); btn.textContent = '▶'; }
+  }
+
+  function nextTrack() { loadTrack((current + 1) % SONGS.length); audio.play(); }
+  function prevTrack() { loadTrack((current - 1 + SONGS.length) % SONGS.length); audio.play(); }
+
+  function fmt(s) { return Math.floor(s/60) + ':' + (Math.floor(s%60)+'').padStart(2,'0'); }
+
+  function seekClick(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    if (audio.duration) audio.currentTime = pct * audio.duration;
+  }
+
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration * 100).toFixed(1);
+    document.getElementById('prog').style.width = pct + '%';
+    document.getElementById('cur').textContent = fmt(audio.currentTime);
+  });
+  audio.addEventListener('loadedmetadata', () => {
+    document.getElementById('dur').textContent = fmt(audio.duration);
+  });
+  audio.addEventListener('ended', nextTrack);
+  audio.addEventListener('play', () => document.getElementById('play-btn').textContent = '⏸');
+  audio.addEventListener('pause', () => document.getElementById('play-btn').textContent = '▶');
+</script>
+</body>
+</html>
